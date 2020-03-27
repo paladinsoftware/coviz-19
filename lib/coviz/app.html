@@ -1,0 +1,132 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CoVIZ-19</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+  <style>
+    html {
+      height: 100%;
+    }
+    body {
+      min-height: 100%;
+    }
+    select {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 20%;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      width: 80%;
+    }
+  </style>
+</head>
+
+<body>
+  <select id="countries" multiple size=10></select>
+  <canvas id="chart"></canvas>
+
+  <script>
+    var data = null;
+    var countryList = document.getElementById("countries");
+
+    var chart = new Chart('chart', {
+      type: 'line',
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        scales: {
+          yAxes: [{
+            scaleLabel: {
+              display: true,
+              labelString: 'Number of cases per 1M population',
+              padding: 10
+            }
+          }],
+          xAxes: [{
+            scaleLabel: {
+              display: true,
+              labelString: 'Days since number of cases per 1M population reached 1',
+              padding: 10
+            }
+          }]
+        }
+      }
+    });
+
+    countryList.addEventListener("change", function() { draw() });
+
+    function renderOptions() {
+      countries = data.countries.sort((a, b) => (a.total > b.total) ? -1 : 1)
+
+      for(var i=0; i<countries.length; i++) {
+        var option = document.createElement("option");
+        option.text = `${countries[i].country} (${countries[i].total})`
+        option.value = countries[i].country;
+        if(i < 10) option.selected = true;
+
+        countryList.add(option);
+      }
+      draw();
+    }
+
+    function countrySelected(c) {
+      for(opt of countryList.selectedOptions) {
+        if(opt.value == c) return true;
+      }
+      return false;
+    }
+
+    function draw() {
+      chart.data.datasets = [];
+      var datasets = [];
+      var points = 0;
+      var labels = [];
+
+      for(var i=0; i<data.countries.length; i++) {
+        if(!countrySelected(data.countries[i].country)) continue;
+
+        var vals = data.countries[i].relatives_aligned;
+        var r = Math.floor(64 + Math.random() * 128);
+        var g = Math.floor(64 + Math.random() * 128);
+        var b = Math.floor(64 + Math.random() * 128);
+        var color = "rgb(" + r + "," + g + "," + b + ")";
+
+        if(vals.length > points) points = vals.length;
+
+        chart.data.datasets.push({
+          label: data.countries[i].country,
+          data: vals,
+          total: vals,
+          fill: false,
+          lineTension: 0,
+          borderWidth: 3,
+          pointRadius: 2,
+          borderColor: color,
+          hoverBorderWidth: 6,
+        });
+      }
+      for(var i=0; i<points; i++) labels[i] = i;
+      chart.data.labels = labels;
+      chart.update();
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4){
+        data = JSON.parse(xhr.responseText);
+        renderOptions();
+      }
+    };
+    xhr.open('GET', '/data/confirmed.json');
+    xhr.send()
+  </script>
+</body>
+</html>
